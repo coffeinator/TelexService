@@ -1,0 +1,26 @@
+# systemd service file to start piTelex
+
+# sudo cp txsbahn.service /lib/systemd/system/
+# sudo systemctl enable txsbahn.service
+# sudo systemctl daemon-reload && sudo systemctl start txsbahn.service
+
+[Unit]
+#
+Description=txsBahn
+Requires=network.target
+After=network.target
+Documentation=https://tty.mhoerz.de/
+
+[Service]
+Type=forking
+User=marcel
+Group=marcel
+#
+WorkingDirectory=/home/marcel/Programme/TelexService/
+#
+ExecStart=/usr/bin/byobu-screen -d -m -S txsBahn /home/marcel/Programme/TelexService/txservice.py -c txsbahn.conf
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
