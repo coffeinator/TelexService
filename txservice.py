@@ -73,8 +73,9 @@ def init():
 		config = ConfigParser(cfg_defaults)
 		config.read_dict(cfg_defaults)
 		if not os.path.isfile(configFile):
-			raise Exception('Config file "'+configFile+'" not found!')
-		config.read(configFile)
+			print('Warn: Config file "'+configFile+'" not found!')
+		else:
+			config.read(configFile)
 	except:
 		print('Error in config-file.')
 		raise
