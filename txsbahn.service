@@ -9,7 +9,7 @@
 Description=txsBahn
 Requires=network.target
 After=network.target
-Documentation=https://tty.mhoerz.de/
+Documentation=https://github.com/coffeinator/TelexService
 
 [Service]
 Type=forking
