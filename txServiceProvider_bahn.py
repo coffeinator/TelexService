@@ -242,7 +242,11 @@ class TelexServiceProvider(TxSP_base):
 		url = self._baseurl + "XSLT_STOPFINDER_REQUEST"
 		#url = baseurl
 		
-		r = requests.get(url, params=rparams, headers=self._header)
+		try:
+			r = requests.get(url, params=rparams, headers=self._header)
+		except:
+			return None,600
+
 		r.encoding = 'UTF-8'
 
 		ret = None
@@ -265,7 +269,11 @@ class TelexServiceProvider(TxSP_base):
 		url = self._baseurl + "XSLT_DM_REQUEST"
 		#url = baseurl
 		
-		r = requests.get(url, params=rparams, headers=self._header)
+		try:
+			r = requests.get(url, params=rparams, headers=self._header)
+		except:
+			return None,600
+
 		r.encoding = 'UTF-8'
 
 		ret = None
@@ -303,7 +311,11 @@ class TelexServiceProvider(TxSP_base):
 		url = self._baseurl + "XSLT_TRIP_REQUEST2"
 		#url = baseurl
 		
-		r = requests.get(url, params=rparams, headers=self._header)
+		try:
+			r = requests.get(url, params=rparams, headers=self._header)
+		except:
+			return None,600
+
 		r.encoding = 'UTF-8'
 
 		ret = None
@@ -330,7 +342,11 @@ class TelexServiceProvider(TxSP_base):
 		url = self._baseurl + "XSLT_TRIP_REQUEST2"
 		#url = baseurl
 		
-		r = requests.get(url, params=rparams, headers=self._header)
+		try:
+			r = requests.get(url, params=rparams, headers=self._header)
+		except:
+			return None,600
+
 		r.encoding = 'UTF-8'
 
 		ret = None
@@ -352,7 +368,11 @@ class TelexServiceProvider(TxSP_base):
 		url = self._baseurl + "XSLT_TRIP_REQUEST2"
 		#url = baseurl
 		
-		r = requests.get(url, params=rparams, headers=self._header)
+		try:
+			r = requests.get(url, params=rparams, headers=self._header)
+		except:
+			return None,600
+
 		r.encoding = 'UTF-8'
 
 		ret = None
@@ -955,9 +975,9 @@ class TelexServiceProvider(TxSP_base):
 			self.send('\r\n')
 			
 			line = ''
-			line += trip['legs'][0]['points'][0]['name'] + '                            '
+			line += self.ascii2tty(trip['legs'][0]['points'][0]['name']) + '                            '
 			line = line[:30] + '  -  '
-			dest = trip['legs'][len(trip['legs'])-1]['points'][1]['name']
+			dest = self.ascii2tty(trip['legs'][len(trip['legs'])-1]['points'][1]['name'])
 			for j in range(0,30-len(dest)):
 				line += ' '
 			line += dest
@@ -1262,7 +1282,7 @@ class TelexServiceProvider(TxSP_base):
 
 
 	def doHandleClient(self):
-		self.send("\r\nbahn-auskunft.\r\neingaben bestaetigen mit (neue zeile)\r\neingaben loeschen mit (wagenruecklauf)\r\n\n")
+		self.send("\r\nbahn-auskunft.\r\neingaben bestaetigen mit (neue zeile)\r\neingaben loeschen mit xxx am ende\r\n\n")
 		
 		self.send(self.WRU)
 		self.ignoreWRU = True
@@ -1285,8 +1305,8 @@ class TelexServiceProvider(TxSP_base):
 					self.menuDoVerbindung()
 			except:
 				self.send('\r\nein schwerwiegender fehler ist aufgetreten.\r\n\n')
-				raise
-#				return
+#				raise
+				return
 
 
 
