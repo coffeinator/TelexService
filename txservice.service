@@ -1,7 +1,7 @@
 # systemd service file to start piTelex
 
-# sudo cp txsbahn.service /lib/systemd/system/
-# sudo systemctl enable txsbahn.service
+# sudo cp txservice.service /lib/systemd/system/
+# sudo systemctl enable txservice.service
 # sudo systemctl daemon-reload && sudo systemctl start txservice.service
 
 [Unit]
@@ -12,13 +12,13 @@ After=network.target
 Documentation=https://github.com/coffeinator/TelexService
 
 [Service]
-Type=forking
+Type=simple
 User=marcel
 Group=marcel
 #
 WorkingDirectory=/home/marcel/Programme/TelexService/
 #
-ExecStart=/usr/bin/byobu-screen -d -m -S txservice /home/marcel/Programme/TelexService/txservice.py
+ExecStart=/home/marcel/Programme/TelexService/txservice.py
 Restart=always
 RestartSec=10
 
