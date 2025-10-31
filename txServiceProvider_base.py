@@ -155,9 +155,22 @@ class TelexServiceProvider_base():
 		s,e = self.recvUntil(['\n'])
 		return s
 
-	def recvCorrLine(self) -> str:
+#	DONT USE IF YOU WANT SUPPORT MORE MODERN TELEX MACHINES!
+	def recvCorrLine_old(self) -> str:
+		l.warning('recvCorrLine is not usable on more modern telex machines, because they always send \\r\\n!')
 		s,e = self.recvUntil(['\n'])
 		return s[s.rfind('\r')+1:]
+		
+	def recvCorrLine(self, cancelStr = 'xxx', onlyAtEnd = True) -> str:
+		s,e = self.recvUntil(['\n'])
+		s = s.strip()
+		lenCS = len(cancelStr)
+		if (s[-lenCS:] == cancelStr):
+			return ''
+		p = s.rfind(cancelStr)
+		if (not onlyAtEnd and (p >= 0)):
+			return s[p+lenCS:]
+		return s
 
 	def recvFile(self, stop = '(eof)') -> str:
 		ast = ''
