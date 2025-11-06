@@ -232,6 +232,7 @@ def main():
 		stop.set()
 	# get count of currently connected connections
 	def _signal_handler_getconn(signum, frame):
+		l.info(str(int(config['server']['maxConcurrent']) - sema.get_value()) + " Currently Active Connections <---------------------------------------")
 		print(int(config['server']['maxConcurrent']) - sema.get_value())
 	# stop accepting new connection, so we can give active connections a chance
 	# to get finished without be ended while do long requests
@@ -242,8 +243,8 @@ def main():
 
 	signal.signal(signal.SIGINT, _signal_handler_term)
 	signal.signal(signal.SIGTERM, _signal_handler_term)
-	signal.signal(signal.SIGUSR1, _signal_handler_getconn)
-	signal.signal(signal.SIGUSR2, _signal_handler_stopaccept)
+	signal.signal(signal.SIGUSR1, _signal_handler_getconn)     # USR1 - Get current connection count
+	signal.signal(signal.SIGUSR2, _signal_handler_stopaccept)  # USR2 - Stop accepting new connections
 
 
 	with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:
