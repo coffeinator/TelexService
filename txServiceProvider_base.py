@@ -17,7 +17,7 @@ l = logging.getLogger("txs." + __name__)
 
 import txCode
 
-
+WRU_THRES = 1
 
 # i-Telex allowed package types for Baudot texting mode
 # (everything else triggers ASCII texting mode)
@@ -136,18 +136,28 @@ class TelexServiceProvider_base():
 	def getLastBuZiMode(self):
 		return self._BuZi
 
-	def requestWru(self):
-		self.send('@')
-		owru = self.recvUntil(['\n'])[0]+self.recvUntil(['\n'])[0]
-		return owru.strip()
+	def requestWRU(self):
+#		self.send('@')
+#		owru = self.recvUntil(['\n'])[0]+self.recvUntil(['\n'])[0]
+#		return owru.strip()
 		
-
+		
+		# wait until outputbuffer is send
+		# is_running() is needed, because connection could be closed and _tx_buffer has still contents
+		while self.is_running() and self.getOutputLen() > 0:
+			print(self.getOutputLen())
+			time.sleep(0.15)
+		
+		self.send('@')
+		
 		lasttime = time.monotonic()
 		lastLen  = 0
 		gotInput = True
-		# is_running() is needed, because connection could be closed and _tx_buffer has still contents
-		while self.is_running() and self.getOutputLen() > 0 and gotInput:
+		# then receive WRU
+		# is_running() is needed, because connection could be closed and _rx_buffer does not receive anymore… wait… then we shall fall out of while…
+		while self.is_running() and gotInput:
 #			time.sleep(len(self._tx_buffer)*0.15) # needs to much time
+			print(time.monotonic(), lasttime, self.getInputLen())
 			
 			time.sleep(0.15)
 			if self.getOutputLen() > 0:
@@ -159,11 +169,9 @@ class TelexServiceProvider_base():
 				lasttime = time.monotonic()
 			elif newLen == lastLen and lastLen > 0:
 				now = time.monotonic()
-				if (now - lasttime > 1):
+				if (now - lasttime > WRU_THRES):
 					gotInput = False
 			
-			
-		time.sleep(3)
 		owru = ''
 		while self.getInputLen() > 0:
 			c = self.recvChar()

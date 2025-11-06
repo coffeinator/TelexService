@@ -1287,7 +1287,8 @@ class TelexServiceProvider(TxSP_base):
 		
 		self.send(self.WRU)
 #		self.ignoreWRU = True
-		owru = self.requestWru()
+		owru = self.requestWRU()
+#		print(owru)
 		l.info(owru)
 		
 		self.send('\r\n\n')
