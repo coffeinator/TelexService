@@ -612,6 +612,12 @@ class TelexServiceProvider_base():
 
 		except (KeyboardInterrupt, SystemExit):
 			l.info('Exit by Keyboard')
+		
+		# catch again because at time as the initial ack the connection can already be closed again
+		except (socket.error,BrokenPipeError,ConnectionResetError):
+			l.error("Exception caught:", exc_info = sys.exc_info())
+			error = True
+			break
 
 		finally:
 			if not is_ascii:
