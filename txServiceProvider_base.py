@@ -145,7 +145,6 @@ class TelexServiceProvider_base():
 		# wait until outputbuffer is send
 		# is_running() is needed, because connection could be closed and _tx_buffer has still contents
 		while self.is_running() and self.getOutputLen() > 0:
-			print(self.getOutputLen())
 			time.sleep(0.15)
 		
 		self.send('@')
@@ -156,8 +155,6 @@ class TelexServiceProvider_base():
 		# then receive WRU
 		# is_running() is needed, because connection could be closed and _rx_buffer does not receive anymore… wait… then we shall fall out of while…
 		while self.is_running() and gotInput:
-#			time.sleep(len(self._tx_buffer)*0.15) # needs to much time
-			print(time.monotonic(), lasttime, self.getInputLen())
 			
 			time.sleep(0.15)
 			if self.getOutputLen() > 0:
