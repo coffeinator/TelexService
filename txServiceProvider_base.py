@@ -136,16 +136,31 @@ class TelexServiceProvider_base():
 	def getLastBuZiMode(self):
 		return self._BuZi
 
-# TODO: Throw exception if not connected anymore! ?
-
 	def requestWru(self):
 		self.send('@')
 #		owru = self.recvUntil(['\n'])[0]+self.recvUntil(['\n'])[0]
 		
+		lasttime = time.monotonic()
+		lastLen  = 0
+		gotInput = True
 		# is_running() is needed, because connection could be closed and _tx_buffer has still contents
-		while self.is_running() and self.getOutputLen() > 0:
+		while self.is_running() and self.getOutputLen() > 0 and gotInput:
 #			time.sleep(len(self._tx_buffer)*0.15) # needs to much time
+			
 			time.sleep(0.15)
+			if self.getOutputLen() > 0:
+				continue
+			
+			newLen = self.getInputLen()
+			if newLen > lastLen:
+				lastLen = newLen
+				lasttime = time.monotonic()
+			elif newLen == lastLen:
+				now = time.monotonic()
+				if (now - lasttime > 1):
+					gotInput = False
+			
+			
 		time.sleep(3)
 		owru = ''
 		while self.getInputLen() > 0:
