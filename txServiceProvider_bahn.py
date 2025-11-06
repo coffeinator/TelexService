@@ -187,18 +187,19 @@ class TelexServiceProvider(TxSP_base):
 		'requestID': 0
 	}
 
-
-	_startStation = None
-	_destStation = None
-	_viaStation = 'invalid'
-	_notViaStation = 'invalid'
-	_dateTimeDepArr = 'dep'		# dep | arr
-	_datetime = None
-	_lineRestriction = 400		# 400 | 403 (403 = nur nahverkehr
-	_routeType = 'LEASTTIME'	# LEASTTIME | LEASTINTERCHANGE | LEASTWALKING | RELIABLE | LEASTCOSTEX
-	_bicycle = 0				# fahrradmitnahme = 15
-	_changeSpeed = 100			# normal|fast|slow | [25..100..400] # (slow = 50, fast = 200)
-	_maxChanges = 9				# 0..9
+	def initOptions(self):
+		self._startStation = None
+		self._destStation = None
+		self._viaStation = 'invalid'
+		self._notViaStation = 'invalid'
+		self._dateTimeDepArr = 'dep'		# dep | arr
+		self._datetime = None
+		self._lineRestriction = 400		# 400 | 403 (403 = nur nahverkehr
+		self._routeType = 'LEASTTIME'	# LEASTTIME | LEASTINTERCHANGE | LEASTWALKING | RELIABLE | LEASTCOSTEX
+		self._bicycle = 0				# fahrradmitnahme = 15
+		self._changeSpeed = 100			# normal|fast|slow | [25..100..400] # (slow = 50, fast = 200)
+		self._maxChanges = 9				# 0..9
+	
 	
 	
 	_dwellTime_via = 0
@@ -414,7 +415,8 @@ class TelexServiceProvider(TxSP_base):
 				'lid': 1,
 				'id': p['stateless'],
 				'loc': p['mainLoc'],
-				'name': p['object']
+				'name': p['object'],
+				'fullname': p['name']
 			}]
 		
 		# eg points is None
@@ -455,10 +457,8 @@ class TelexServiceProvider(TxSP_base):
 	def menuGetADateTime(self,prompt):
 		self.send('format: dd.mm.yyyy hh:mm, hh:mm, oder \'j\' fuer jetzt\r\n')
 		ts = ''
-		while self.is_running() and ts == '':
-			self.send(prompt+': ')
-			ts = self.recvCorrLine().strip()
-			self.send('\r')
+		while ts == '':
+			ts = self.getInput(prompt)
 			
 			if ts == 'j':
 				return time.localtime()
@@ -478,9 +478,8 @@ class TelexServiceProvider(TxSP_base):
 		return None
 
 	def menuGetStation(self,prompt):
-		while self.is_running():
+		while True:
 			stations = []
-#			self.send('\r\n')
 			sname = self.getInput(prompt)
 			if sname == None:
 				return None
@@ -517,28 +516,25 @@ class TelexServiceProvider(TxSP_base):
 			self.send('\nbitte station auswaehlen. (x = neu suchen)\r\n')
 			
 			sid = ''
-			while self.is_running() and sid == '':
-				sid = self.recvCorrLine().strip()
-				self.send('\r')
+			iid = 0
+			while sid == '':
+				sid = self.getInput()
 				
 				if sid != 'x':
 					try:
-						if int(sid) == 0 or int(sid) > len(stations):
+						iid = int(sid)
+						if iid == 0 or iid > len(stations):
 							sid = ''
 					except:
 						sid = ''
-					
-				if sid == '':
-					# what if empty and ended with \n?
-					# what if empty and ended with \r?
-					self.send('\r\n')
+			
 			if sid == '':
 				return None
 			if sid == 'x':
 				continue
 			else:
 				for s in stations:
-					if s['lid'] == int(sid):
+					if s['lid'] == iid:
 						return s
 		return None
 
@@ -639,8 +635,8 @@ class TelexServiceProvider(TxSP_base):
 		self.send('Gehgeschwindigkeit (25..400)\r\n')
 		self.send('25=sehr langsam 50=langsam 100=normal 200=schnell 400=sehr schnell\r\n')
 		v = 0
-		while self.is_running() and v == 0:
-			sel = self.recvCorrLine().strip()
+		while v == 0:
+			sel = self.getInput()
 			try:
 				v = int(sel)
 			except:
@@ -666,15 +662,13 @@ class TelexServiceProvider(TxSP_base):
 			
 		else:
 			station = None
-			while self.is_running() and station == None:
+			while station == None:
 				station = self.menuGetStation('via')
-			if station == None: # connection stopped
-				return
 			self._viaStation = station['id']
 			self._viaStationName = station['fullname']
 			self.send('aufenthaltszeit (in minuten)\r\n')
 			self._dwellTime_via = 0
-			while self.is_running() and self._dwellTime_via == 0:
+			while self._dwellTime_via == 0:
 				stime = self.getInput('zeit')
 				try:
 					itime = int(stime)
@@ -693,10 +687,8 @@ class TelexServiceProvider(TxSP_base):
 			
 		else:
 			station = None
-			while self.is_running() and station == None:
+			while station == None:
 				station = self.menuGetStation('nicht via')
-			if station == None: # connection stopped
-				return
 			self._notViaStation = station['id']
 			self._notViaStationName = station['fullname']
 			
@@ -807,6 +799,17 @@ class TelexServiceProvider(TxSP_base):
 			self.prettyPrint_departure(deps['deps'][i])
 			i += 1
 		self.send('\n')
+	
+	def prettyPrintDepLegend(self):
+		self.send(' z = zug\r\n')
+		self.send(' s = s-bahn\r\n')
+		self.send(' u = u-bahn\r\n')
+		self.send(' t = tram\r\n')
+		self.send(' b = bus\r\n')
+		self.send(' w = schiff\r\n')
+		self.send(' x = taxi (ast/alt)\r\n')
+		self.send(' f = flugzeug\r\n')
+		self.send("' '= unbekannt\r\n")
 
 	def prettyPrint_legs(self, legs):
 		sumDur = 0
@@ -1146,10 +1149,8 @@ class TelexServiceProvider(TxSP_base):
 		self.send('abfahrtstafel gewaehlt.\r\n\n')
 		
 		station = None
-		while self.is_running() and station == None:
+		while station == None:
 			station = self.menuGetStation('station')
-		if station == None: # connection stopped
-			return
 		self._startStation = station['id']
 		
 		self.send('\r\n')
@@ -1168,6 +1169,10 @@ class TelexServiceProvider(TxSP_base):
 			return None
 		
 		self.prettyPrint_departures(deps)
+		self.send('legende drucken? ')
+		o = self.getInputOption(['j','n'],prompt='j/n',end=' ')
+		if o == 'j':
+			self.prettyPrintDepLegend()
 		self.send('\n')
 
 	def menuDoVerbindungsManagement(self):
@@ -1175,7 +1180,7 @@ class TelexServiceProvider(TxSP_base):
 		
 		valids = ['s','f']
 		printConns = True
-		while self.is_running():
+		while True:
 		
 			if trips_json == None:
 				self.sendReqErr(status)
@@ -1205,15 +1210,15 @@ class TelexServiceProvider(TxSP_base):
 				self.send('\n')
 				
 				
-				self.send('d_ = details fuer gewaehlte verbindung.\r\n')
-				self.send('s = spaeter. f = frueher.\r\n') # r x= retour.\r\n')
+				self.send('d.. = details fuer gewaehlte verbindung .\r\n')
+				self.send('s = spaeter. f = frueher. x = zurueck.\r\n') # r x= retour.\r\n')
 				
 				valids = ['s','f','x']
 				for i in range(0,len(trips_json['trips'])):
 					valids.append('d'+str(i+1))
 			
 			printConns = True
-			sel = self.getInputOption(valids,'auswahl')
+			sel = self.getInputOption(valids,'verbindungen')
 			
 			if sel == 'x' or sel == '':
 				return
@@ -1235,24 +1240,21 @@ class TelexServiceProvider(TxSP_base):
 		self.send('verbindung gewaehlt.\r\n\n')
 		
 		station = None
-		while self.is_running() and station == None:
+		while station == None:
 			station = self.menuGetStation('start-station')
-		if station == None: # connection stopped
-			return
 #		station = {'id':6930100} # bertoldsbrunnen
 		self._startStation = station['id']
 		
 		
 		station = None
-		while self.is_running() and station == None:
+		while station == None:
 			station = self.menuGetStation('ziel-station')
-		if station == None: # connection stopped
-			return
 #		station = {'id':7006418} # elchesheim grüner baum
 		self._destStation = station['id']
 		
-		self.send('dep = abfahrt oder arr = ankunft\r\n')
-		self._dateTimeDepArr = self.getInputOption(['dep','arr'])
+		self.send('\nab = abfahrtszeit oder an = ankunftszeit\r\n')
+		depoarr = self.getInputOption(['abfahrt','ankunft'])
+		self._dateTimeDepArr = 'dep' if depoarr == 'abfahrt' else 'arr'
 		self._datetime = self.menuGetADateTime('zeit '+('ab' if self._dateTimeDepArr == 'dep' else 'an'))
 		if self._datetime == None:
 			return
@@ -1260,10 +1262,9 @@ class TelexServiceProvider(TxSP_base):
 		self.send('\r\n')
 		
 		sel = ''
-		prompt = ''
-		self.send('s = abfrage starten. o = optionen. (1-7) = option anpassen\r\n')
-		while self.is_running() and sel != 's' and sel != 'x':
-			sel = self.getInputOption(['s','o','x','1','2','3','4','5','6','7'],'auswahl')
+		self.send('s = abfrage starten. o = optionen. (1-7) = option anpassen.\r\n')
+		while sel != 's' and sel != 'x':
+			sel = self.getInputOption(['s','o','x','1','2','3','4','5','6','7'],'optionen')
 			
 			match sel:
 				case 'o': self.menuPrintOptions()
@@ -1282,31 +1283,39 @@ class TelexServiceProvider(TxSP_base):
 
 
 	def doHandleClient(self):
-		self.send("\r\nbahn-auskunft.\r\neingaben bestaetigen mit (neue zeile)\r\neingaben loeschen mit xxx am ende\r\n\n")
+		self.send("\r\nbahn-auskunft   v0.2\r\neingaben bestaetigen mit (neue zeile)\r\neingaben loeschen mit xxx am ende\r\n\n")
 		
 		self.send(self.WRU)
-		self.ignoreWRU = True
-		self.send('@')
-		owru = self.recvUntil(['\n'])[0]+self.recvUntil(['\n'])[0]
-		owru = owru.strip()
+#		self.ignoreWRU = True
+		owru = self.requestWru()
 		l.info(owru)
 		
-		self.send('\r\n')
+		self.send('\r\n\n')
 		
 		mode = ''
-		while self.is_running() and mode != 'x':
-			self.send('a = abfahrtstafel. v = verbindung suchen. x = trennen.\r\n')
-			mode = self.getInputOption(['a','v','x'])
+		ctn = 0
+		while mode != 'x':
+			self.send('a = abfahrtstafel. v = verbindung suchen.')
+			if ctn > 0:
+				self.send('\r\nvo = verbindung suchen, optionen behalten.')
+			self.send(' x = trennen.\r\n')
+			if ctn == 0:
+				mode = self.getInputOption(['a','v','x'])
+			else:
+				mode = self.getInputOption(['a','v','vo','x'])
 			
 			try:
 				if mode == 'a':
 					self.menuDoAbfahrt()
 				if mode == 'v':
+					self.initOptions()
+					self.menuDoVerbindung()
+					ctn += 1
+				if mode == 'vo':
 					self.menuDoVerbindung()
 			except:
 				self.send('\r\nein schwerwiegender fehler ist aufgetreten.\r\n\n')
-#				raise
-				return
+				raise
 
 
 

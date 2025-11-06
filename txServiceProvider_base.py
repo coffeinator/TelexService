@@ -105,10 +105,13 @@ def send_reject(self, s, msg = "abs"):
 	l.info('Reject, reason {!r}'.format(msg))
 	s.sendall(send)
 
+class TelexConnClosed(Exception):
+	pass
 
 class TelexServiceProvider_base():
 	WRU = '12345 txss d'
 	ignoreWRU = False
+	_BuZi = '<'
 
 	def __init__(self):
 		self._rx_buffer = []
@@ -122,29 +125,72 @@ class TelexServiceProvider_base():
 		for c in s:
 			self._tx_buffer.append(c)
 
-
 	def clearInputBuffer(self):
 		self._rx_buffer.clear()
 		return
 
+	def getInputLen(self):
+		return len(self._rx_buffer)
+	def getOutputLen(self):
+		return len(self._tx_buffer)
+	def getLastBuZiMode(self):
+		return self._BuZi
+
 # TODO: Throw exception if not connected anymore! ?
+
+	def requestWru(self):
+		self.send('@')
+#		owru = self.recvUntil(['\n'])[0]+self.recvUntil(['\n'])[0]
+		
+		# is_running() is needed, because connection could be closed and _tx_buffer has still contents
+		while self.is_running() and self.getOutputLen() > 0:
+			time.sleep(len(self._tx_buffer)*0.15)
+		time.sleep(3)
+		owru = ''
+		while self.getInputLen() > 0:
+			c = self.recvChar()
+			if c in ['<','>','@','\r','\n']:
+				continue
+			owru += c
+			
+#			# in case rx buffer is already empty, wait additional two char length
+#			if (self.getInputLen() == 0):
+#				time.sleep(0.3)
+		
+		return owru.strip()
 
 	def recvChar(self) -> str:
 		c = ''
+		# wait until new char arrives and connection is running
 		while len(self._rx_buffer) == 0 and self.is_running():
-			time.sleep(0.15)
-		try:
-			c = self._rx_buffer.pop(0)
-		except Exception:
-			pass
+			time.sleep(0.15) # 1 char is 1x start bit, 5x data, 1.5 stop = 0.15s
+		# if we got chars, try to get one
+		if len(self._rx_buffer) > 0:
+			try:
+				c = self._rx_buffer.pop(0)
+			except Exception:
+				# catch any possible exception (can be there one?)
+				pass
+		# if _rx_buffer still empty, the connection must be closed. Either by peer or by us.
+		# in both cases, we want to get to an end. So we raise an exception which only is catched
+		# at the point where the subroutine for this server is called.
+		# So no "is_running" is needed at every reading while loop anymore.
+		else:
+			raise TelexConnClosed()
+		if c in ['<','>']:
+			self._BuZi = c
 #		print('>'+c+'<')
+# TODO dont return @ if handled here!
 		if (c == '@') and not self.ignoreWRU:
-			self.send(self.WRU)
+			self.send('\r\n'+self.WRU)
+			return ''
 		return c.lower()
 
 	def recvUntil(self, stop) -> [str, str]:
 		ast = ''
-		while (c := self.recvChar()) and not c in stop and self.is_running():
+		c = ''
+		while not c in stop:
+			c = self.recvChar()
 			if c == '<' or c == '>':
 				continue
 			ast += c
@@ -176,7 +222,7 @@ class TelexServiceProvider_base():
 		ast = ''
 		tmp = ''
 		
-		while tmp != stop and self.is_running():
+		while tmp != stop:
 			c = self.recvChar()
 			if c == '<' or c == '>':
 				continue
@@ -186,23 +232,43 @@ class TelexServiceProvider_base():
 				tmp = ''
 		return ast
 
+# For developer:
+# Try to use getInput…, because it sends the last state of BuZi-state automatically.
+# So the teletype printer and keyboard will be in the same state.
 	def getInput(self, prompt = '', end = ': '):
 		inp = ''
-		while self.is_running() and inp == '':
+		while inp == '':
 			if len(prompt) > 0:
 				self.send(prompt+end)
+			self.send(self._BuZi)
 			inp = self.recvCorrLine().strip()
 			self.send('\r')
 		return inp
 
 	def getInputOption(self, validOptions, prompt = '', end = ': '):
 		opt = ''
-		while self.is_running() and (opt == '' or not opt in validOptions):
+		while (opt == '' or not opt in validOptions):
 			if len(prompt) > 0:
 				self.send(prompt+end)
+			self.send(self._BuZi)
 			opt = self.recvCorrLine().strip()
+			
+			opt = self._validOptionStartsWith(opt, validOptions)
+			
 			self.send('\r')
 		return opt
+	def _validOptionStartsWith(self, opt, validOptions):
+		ret = ''
+		for vo in validOptions:
+			if opt == vo:
+				return vo
+		for vo in validOptions:
+			if vo.startswith(opt):
+				if len(ret) > 0:
+					return ''
+				else:
+					ret = vo
+		return ret
 
 ###########################################################################################
 
@@ -217,13 +283,20 @@ class TelexServiceProvider_base():
 		self._t = Thread(target=self.handle_client_conn, name='txsConn', args=(s,addr,sema))
 		self._t.start()
 		
-		# now do what to do
-		self.doHandleClient()
-		
-		# wait to flush the _tx_buffer
-		while self.is_running() and self._tx_buffer:
-			time.sleep(len(self._tx_buffer)*0.15)
-		self.send_end(s)
+		try:
+			# now do what to do
+			self.doHandleClient()
+		except TelexConnClosed:
+			l.info('Conn closed while reading.')
+		except:
+			# catch any possible exception so we can come to an end cleanly.
+#			raise
+			pass
+		finally:
+			# wait to flush the _tx_buffer (if connection still there)
+			while self.is_running() and self._tx_buffer:
+				time.sleep(len(self._tx_buffer)*0.15)
+			self.send_end(s)
 	
 	# just for deriving purpose
 	def doHandleClient(self):
