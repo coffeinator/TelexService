@@ -190,8 +190,8 @@ class TelexServiceProvider(TxSP_base):
 	def initOptions(self):
 		self._startStation = None
 		self._destStation = None
-		self._viaStation = 'invalid'
-		self._notViaStation = 'invalid'
+		self._viaStation = None
+		self._notViaStation = None
 		self._dateTimeDepArr = 'dep'		# dep | arr
 		self._datetime = None
 		self._lineRestriction = 400		# 400 | 403 (403 = nur nahverkehr
@@ -205,9 +205,6 @@ class TelexServiceProvider(TxSP_base):
 	_dwellTime_via = 0
 	_AlwaysDwellTimeJourneCalculation=1 # must be set if via is set
 	_useAltOdv = 1
-	
-	_viaStationName = ''
-	_notViaStationName = ''
 	
 	_sessionID = 0
 	_requestID = 0
@@ -263,7 +260,7 @@ class TelexServiceProvider(TxSP_base):
 	def reqGetDepartures(self):
 	#	dt = time.localtime()
 		rparams = self._base_params | self._params_dm | {
-			"nameInfo_dm": self._startStation,
+			"nameInfo_dm": self._startStation['id'],
 			"itdDate":     time.strftime("%Y%m%d", self._datetime),
 			"itdTime":     time.strftime("%H%M", self._datetime)
 		}
@@ -288,10 +285,8 @@ class TelexServiceProvider(TxSP_base):
 
 	def reqGetTrip(self):
 		rparams = self._base_params | self._params_trip | {
-			"nameInfo_origin":       self._startStation,
-			"nameInfo_destination":  self._destStation,
-			"nameInfo_via":          self._viaStation,
-			"nameInfo_notVia":       self._notViaStation,
+			"nameInfo_origin":       self._startStation['id'],
+			"nameInfo_destination":  self._destStation['id'],
 			"itdTripDateTimeDepArr": self._dateTimeDepArr,
 			"itdDate":               time.strftime("%Y%m%d", self._datetime),
 			"itdTime":               time.strftime("%H%M",   self._datetime),
@@ -300,11 +295,24 @@ class TelexServiceProvider(TxSP_base):
 			"changeSpeed":           self._changeSpeed,
 			"maxChanges":            self._maxChanges
 		}
-		if self._viaStation != 'invalid':
+		if self._viaStation == None:
 			rparams |= {
+				"nameInfo_via": 'invalid',
+			}
+		else:
+			rparams |= {
+				"nameInfo_via": self._viaStation['id'],
 				"dwellTime_via": self._dwellTime_via,
 				"AlwaysDwellTimeJourneCalculation": 1, # must be set if via is set
 				"useAltOdv": 1 # must be set if via is set
+			}
+		if self._notViaStation == None:
+			rparams |= {
+				"nameInfo_notVia": 'invalid',
+			}
+		else:
+			rparams |= {
+				"nameInfo_notVia": self._notViaStation['id'],
 			}
 		if self._bicycle > 0:
 			rparams |= {"trITMOTvalue102": self._bicycle}
@@ -589,18 +597,18 @@ class TelexServiceProvider(TxSP_base):
 		self.send(line)
 		
 		line = '6: ueber '
-		if (self._viaStation == 'invalid'):
+		if (self._viaStation == None):
 			line += '---'
 		else:
-			line += self._viaStationName
+			line += self._viaStation['fullname']
 		line += '\r\n'
 		self.send(line)
 		
 		line = '7: nicht ueber '
-		if (self._notViaStation == 'invalid'):
+		if (self._notViaStation == None):
 			line += '---'
 		else:
-			line += self._notViaStationName
+			line += self._notViaStation['fullname']
 		line += '\r\n'
 		self.send(line)
 	
@@ -656,16 +664,14 @@ class TelexServiceProvider(TxSP_base):
 		self.send('1 = kein via. 2 = via auswaehlen.\r\n')
 		sel = self.getInputOption(['1','2'])
 		if sel == '1':
-			self._viaStation = 'invalid'
-			self._viaStationName = ''
+			self._viaStation = None
 			self._dwellTime_via = 0
 			
 		else:
 			station = None
 			while station == None:
 				station = self.menuGetStation('via')
-			self._viaStation = station['id']
-			self._viaStationName = station['fullname']
+			self._viaStation = station
 			self.send('aufenthaltszeit (in minuten)\r\n')
 			self._dwellTime_via = 0
 			while self._dwellTime_via == 0:
@@ -682,15 +688,13 @@ class TelexServiceProvider(TxSP_base):
 		self.send('1 = keine. 2 = auswaehlen.\r\n')
 		sel = self.getInputOption(['1','2'])
 		if sel == '1':
-			self._notViaStation = 'invalid'
-			self._notViaStationName = ''
+			self._notViaStation = None
 			
 		else:
 			station = None
 			while station == None:
 				station = self.menuGetStation('nicht via')
-			self._notViaStation = station['id']
-			self._notViaStationName = station['fullname']
+			self._notViaStation = station
 			
 
 
@@ -1151,7 +1155,7 @@ class TelexServiceProvider(TxSP_base):
 		station = None
 		while station == None:
 			station = self.menuGetStation('station')
-		self._startStation = station['id']
+		self._startStation = station
 		
 		self.send('\r\n')
 		self._datetime = self.menuGetADateTime('zeit')
@@ -1239,25 +1243,51 @@ class TelexServiceProvider(TxSP_base):
 	def menuDoVerbindung(self):
 		self.send('verbindung gewaehlt.\r\n\n')
 		
-		station = None
-		while station == None:
-			station = self.menuGetStation('start-station')
-#		station = {'id':6930100} # bertoldsbrunnen
-		self._startStation = station['id']
+		if self._startStation != None:
+			self.send('start-station: ' + self.ascii2tty(self._startStation['fullname']))
+			self.send('\r\nbeibehalten? ')
+			o = self.getInputOption(['j','n'],prompt='j/n',end=' ')
+			if o == 'n':
+				self._startStation = None
+		
+		if self._startStation == None:
+			station = None
+			while station == None:
+				station = self.menuGetStation('start-station')
+#			station = {'id':6930100} # bertoldsbrunnen
+			self._startStation = station
 		
 		
-		station = None
-		while station == None:
-			station = self.menuGetStation('ziel-station')
-#		station = {'id':7006418} # elchesheim grüner baum
-		self._destStation = station['id']
+		if self._destStation != None:
+			self.send('ziel-station: ' + self.ascii2tty(self._destStation['fullname']))
+			self.send('\r\nbeibehalten? ')
+			o = self.getInputOption(['j','n'],prompt='j/n',end=' ')
+			if o == 'n':
+				self._destStation = None
 		
-		self.send('\nab = abfahrtszeit oder an = ankunftszeit\r\n')
-		depoarr = self.getInputOption(['abfahrt','ankunft'])
-		self._dateTimeDepArr = 'dep' if depoarr == 'abfahrt' else 'arr'
-		self._datetime = self.menuGetADateTime('zeit '+('ab' if self._dateTimeDepArr == 'dep' else 'an'))
+		if self._destStation == None:
+			station = None
+			while station == None:
+				station = self.menuGetStation('ziel-station')
+#			station = {'id':7006418} # elchesheim grüner baum
+			self._destStation = station
+		
+		
+		if self._datetime != None:
+			self.send('abfahrt' if self._dateTimeDepArr == 'dep' else 'ankunft')
+			self.send(' '+time.strftime("%d.%m.%Y %H:%M", self._datetime))
+			self.send('\r\nbeibehalten? ')
+			o = self.getInputOption(['j','n'],prompt='j/n',end=' ')
+			if o == 'n':
+				self._datetime = None
+		
 		if self._datetime == None:
-			return
+			self.send('\nab = abfahrtszeit oder an = ankunftszeit\r\n')
+			depoarr = self.getInputOption(['abfahrt','ankunft'])
+			self._dateTimeDepArr = 'dep' if depoarr == 'abfahrt' else 'arr'
+			self._datetime = self.menuGetADateTime('zeit '+('ab' if self._dateTimeDepArr == 'dep' else 'an'))
+			if self._datetime == None:
+				return
 		
 		self.send('\r\n')
 		
