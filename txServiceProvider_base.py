@@ -617,7 +617,6 @@ class TelexServiceProvider_base():
 		except (socket.error,BrokenPipeError,ConnectionResetError):
 			l.error("Exception caught:", exc_info = sys.exc_info())
 			error = True
-			break
 
 		finally:
 			if not is_ascii:
