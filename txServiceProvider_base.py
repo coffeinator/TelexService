@@ -138,8 +138,10 @@ class TelexServiceProvider_base():
 
 	def requestWru(self):
 		self.send('@')
-#		owru = self.recvUntil(['\n'])[0]+self.recvUntil(['\n'])[0]
+		owru = self.recvUntil(['\n'])[0]+self.recvUntil(['\n'])[0]
+		return owru.strip()
 		
+
 		lasttime = time.monotonic()
 		lastLen  = 0
 		gotInput = True
@@ -155,7 +157,7 @@ class TelexServiceProvider_base():
 			if newLen > lastLen:
 				lastLen = newLen
 				lasttime = time.monotonic()
-			elif newLen == lastLen:
+			elif newLen == lastLen and lastLen > 0:
 				now = time.monotonic()
 				if (now - lasttime > 1):
 					gotInput = False
@@ -172,8 +174,8 @@ class TelexServiceProvider_base():
 #			# in case rx buffer is already empty, wait additional two char length
 #			if (self.getInputLen() == 0):
 #				time.sleep(0.3)
-		
 		return owru.strip()
+
 
 	def recvChar(self, returnWRU = False) -> str:
 		c = ''
