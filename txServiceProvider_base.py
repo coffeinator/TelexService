@@ -144,7 +144,8 @@ class TelexServiceProvider_base():
 		
 		# is_running() is needed, because connection could be closed and _tx_buffer has still contents
 		while self.is_running() and self.getOutputLen() > 0:
-			time.sleep(len(self._tx_buffer)*0.15)
+#			time.sleep(len(self._tx_buffer)*0.15) # needs to much time
+			time.sleep(0.15)
 		time.sleep(3)
 		owru = ''
 		while self.getInputLen() > 0:
@@ -159,7 +160,7 @@ class TelexServiceProvider_base():
 		
 		return owru.strip()
 
-	def recvChar(self) -> str:
+	def recvChar(self, returnWRU = False) -> str:
 		c = ''
 		# wait until new char arrives and connection is running
 		while len(self._rx_buffer) == 0 and self.is_running():
@@ -180,10 +181,11 @@ class TelexServiceProvider_base():
 		if c in ['<','>']:
 			self._BuZi = c
 #		print('>'+c+'<')
-# TODO dont return @ if handled here!
-		if (c == '@') and not self.ignoreWRU:
-			self.send('\r\n'+self.WRU)
-			return ''
+		if (c == '@'):
+			if not self.ignoreWRU:
+				self.send('\r\n'+self.WRU)
+			if not returnWRU:
+				return ''
 		return c.lower()
 
 	def recvUntil(self, stop) -> [str, str]:
