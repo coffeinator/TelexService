@@ -45,7 +45,7 @@ TxSProvider = None
 
 def init():
 	global config,cfg_defaults,configFile,TxSProvider
-	parser = ArgumentParser(prog='txservice',description='Provides an service to the i-telex network.',epilog='More infos at https://github.com/fablab-wue/piTelex.git')
+	parser = ArgumentParser(prog='txservice',description='Provides an service to the i-telex network.',epilog='More infos at https://github.com/coffeinator/TelexService.git')
 	parser.add_argument("-c", "--config",
 	    dest="cfg_file", default='txservice.conf', metavar="FILE",
 	    help="Load config file (txservice.conf)")
