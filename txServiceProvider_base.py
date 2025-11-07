@@ -122,8 +122,7 @@ class TelexServiceProvider_base():
 ###########################################################################################
 
 	def send(self, s: str):
-		for c in s:
-			self._tx_buffer.append(c)
+		self._tx_buffer.extend(s)
 
 	def clearInputBuffer(self):
 		self._rx_buffer.clear()
