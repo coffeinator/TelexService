@@ -18,6 +18,7 @@ class TelexServiceProvider(TxSP_base):
 		self.send('\r\nWelcome. Send data and it will be echoed back.\r\n')
 		
 		# while we are connected and not got SIGTERM
+		# ATTENTION! EVERY loop which expects an input MUST HAVE "self.is_running()" !
 		while self.is_running():
 		
 			# example for reading input
@@ -25,16 +26,14 @@ class TelexServiceProvider(TxSP_base):
 			#  the return value will then be '')
 		
 			s = ''
-			# ATTENTION! EVERY loop which expects an input MUST HAVE "self.is_running()" !
 			# (else it would run unlimited in the loop!!!)
-			while self.is_running() and len(s) == 0:
+			while len(s) == 0:
 				self.send('Ask: ')
 				s = self.recvCorrLine()
-				# you can also print to normal output. But be aware: This want be written on the teletype.
+				# you can also print to normal output. But be aware: This won't be written on the teletype.
 #				print(s)
 			
-			
-			# I needed the prior input behavior so much in my first project so I implemented this function:
+			# I needed this input behavior so much in my first project so I implemented this function:
 #			s = self.getInput('Ask')
 			self.send('Got: '+s+'\n')
 		l.debug('Stopped or conn is closed.')
