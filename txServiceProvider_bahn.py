@@ -523,7 +523,12 @@ class TelexServiceProvider(TxSP_base):
 				indentCur = len(str(s['lid']))
 				for i in range(0,(indentMax-indentCur)):
 					self.send(' ')
-				self.send(str(s['lid'])+': '+self.ascii2tty(s['name'])+'\r\n')
+				self.send(str(s['lid'])+': ')
+				if s['fullname'].startswith(cloc):
+					self.send(self.ascii2tty(s['name'])[:60])
+				else:
+					self.send(self.ascii2tty(s['fullname'])[:60])
+				self.send('\r\n')
 			self.send('\nbitte station auswaehlen. (x = neu suchen)\r\n')
 			
 			sid = ''
