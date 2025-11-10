@@ -9,6 +9,8 @@ import requests
 import time
 from datetime import datetime
 
+import sys
+
 #import testjsons
 
 #import os
@@ -397,21 +399,42 @@ class TelexServiceProvider(TxSP_base):
 	def getStationsFromJSON(self,stations_json):
 		# isBest nach vorne stellen!
 		tmp = {}
+		best = None
 		if isinstance(stations_json['stopFinder']['points'], list):
 			for p in stations_json['stopFinder']['points']:
 				if p['anyType'] == 'stop':
 					if not p['mainLoc'] in tmp.keys():
 						tmp[p['mainLoc']] = []
-					tmp[p['mainLoc']].append({'id':p['stateless'], 'loc': p['mainLoc'], 'name': p['object'], 'fullname': p['name']})
+					tp = {'id':p['stateless'], 'loc': p['mainLoc'], 'name': p['object'], 'fullname': p['name']}
+					if 'best' in p.keys() and (p['best'].lower() in ['1','true']):
+						best = p['mainLoc']
+						tmp[p['mainLoc']].insert(0,tp)
+					else:
+						tmp[p['mainLoc']].append(tp)
 				if p['anyType'] == 'loc':
 					if not p['name'] in tmp.keys():
 						tmp[p['name']] = []
-					tmp[p['name']].append({'id':p['stateless'], 'loc': p['name'], 'name': p['name'], 'fullname': p['name']})
+					tp = {'id':p['stateless'], 'loc': p['name'], 'name': p['name'], 'fullname': p['name']}
+					if 'best' in p.keys() and (p['best'].lower() in ['1','true']):
+						best = p['mainLoc']
+						tmp[p['mainLoc']].insert(0,tp)
+					else:
+						tmp[p['name']].append(tp)
+			
+			
+			# insane way to get best location on top of the dict
+			tmp2 = {}
+			if best is not None:
+				tmp2[best] = tmp[best]
+				for l in tmp.keys():
+					if l != best:
+						tmp2[l] = tmp[l]
+				tmp = tmp2
 			
 			ret = []
 			i = 1
-			for l in tmp:
-				for p in tmp[l]:
+			for l in tmp:        # for each location
+				for p in tmp[l]: # for each point in location
 					if i <= self._stationsMaxHitSize:
 						ret.append({'lid': i}|p)
 						i += 1
@@ -498,8 +521,9 @@ class TelexServiceProvider(TxSP_base):
 				return None
 			try:
 				stations = self.getStationsFromJSON(stations_json)
-			except:
+			except Exception as e:
 				self.send('fehler beim erstellen der liste der moeglichen stationen.\r\n')
+#				print(sys.exc_info())
 #				raise
 				return None
 			
