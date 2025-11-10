@@ -399,37 +399,16 @@ class TelexServiceProvider(TxSP_base):
 	def getStationsFromJSON(self,stations_json):
 		# isBest nach vorne stellen!
 		tmp = {}
-		best = None
 		if isinstance(stations_json['stopFinder']['points'], list):
 			for p in stations_json['stopFinder']['points']:
 				if p['anyType'] == 'stop':
 					if not p['mainLoc'] in tmp.keys():
 						tmp[p['mainLoc']] = []
-					tp = {'id':p['stateless'], 'loc': p['mainLoc'], 'name': p['object'], 'fullname': p['name']}
-					if 'best' in p.keys() and (p['best'].lower() in ['1','true']):
-						best = p['mainLoc']
-						tmp[p['mainLoc']].insert(0,tp)
-					else:
-						tmp[p['mainLoc']].append(tp)
+					tmp[p['mainLoc']].append({'id':p['stateless'], 'loc': p['mainLoc'], 'name': p['object'], 'fullname': p['name']})
 				if p['anyType'] == 'loc':
 					if not p['name'] in tmp.keys():
 						tmp[p['name']] = []
-					tp = {'id':p['stateless'], 'loc': p['name'], 'name': p['name'], 'fullname': p['name']}
-					if 'best' in p.keys() and (p['best'].lower() in ['1','true']):
-						best = p['mainLoc']
-						tmp[p['mainLoc']].insert(0,tp)
-					else:
-						tmp[p['name']].append(tp)
-			
-			
-			# insane way to get best location on top of the dict
-			tmp2 = {}
-			if best is not None:
-				tmp2[best] = tmp[best]
-				for l in tmp.keys():
-					if l != best:
-						tmp2[l] = tmp[l]
-				tmp = tmp2
+					tmp[p['name']].append({'id':p['stateless'], 'loc': p['name'], 'name': p['name'], 'fullname': p['name']})
 			
 			ret = []
 			i = 1
@@ -439,7 +418,7 @@ class TelexServiceProvider(TxSP_base):
 						ret.append({'lid': i}|p)
 						i += 1
 			return ret
-
+		
 		elif isinstance(stations_json['stopFinder']['points'], dict):
 			p = stations_json['stopFinder']['points']['point']
 			return [{
