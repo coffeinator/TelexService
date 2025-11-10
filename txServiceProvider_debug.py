@@ -14,6 +14,15 @@ class TelexServiceProvider_debug():
 
 	def clearInputBuffer(self):
 		return
+	def getInputLen(self):
+		return 0
+	def getOutputLen(self):
+		return 0
+	def getLastBuZiMode(self):
+		return '<'
+		
+	def requestWRU(self):
+		return 'WRU was requested'
 
 	def recvCorrLine(self):
 		return input()
